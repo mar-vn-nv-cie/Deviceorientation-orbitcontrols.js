@@ -5,7 +5,7 @@ On the example of [OrbitControls.js](https://threejs.org/examples/misc_controls_
  For that reason, I wrote this script due to the need to link the DeviceorientationControls and OrbitControls especially for the reason of controlling the VR videos more well. ([ref. product app](https://itunes.apple.com/jp/app/vrtube-for-youtube-wan-quan/id1126650962?mt=8)) .
  
 ## Usage
-On the default, DeviceorientationControls is inactive. So you need to activate the deviceorientation event. Other than that, it is almost the same as the OrbitControls.js (pan and keyboard event are commentouted by the default for vr usage). 
+On the default, DeviceorientationControls is inactive. So it is need to activate the deviceorientation event first. Other than that, it is almost the same as the OrbitControls.js (pan and keyboard event are commentouted by the default for vr usage). 
 
 ```
 var controls = new THREE.OrbitControls( camera );
