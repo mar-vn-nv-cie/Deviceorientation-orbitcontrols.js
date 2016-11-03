@@ -1,5 +1,5 @@
 //DeviceOrientation+OrbitControls.js
-//created by modifying OrbitControls.js and DeviceOrientationControls.js   
+//Created by OrbitControls.js and DeviceOrientationControls.js
 //@author mar_vn_nv_cie / https://github.com/mar-vn-nv-cie
 
 //OrbitControls
@@ -26,6 +26,7 @@
  * W3C Device Orientation control (http://w3c.github.io/deviceorientation/spec-source-orientation.html)
  */
 
+
 THREE.OrbitControls = function ( object, domElement ) {
     
     this.object = object;
@@ -34,12 +35,16 @@ THREE.OrbitControls = function ( object, domElement ) {
     
     // Set to false to disable this control
     this.enabled = true;
-    this.dampingEnded=true;
+    this.dampingEnded=true;//added
+    this.minDelta=0.002;//added
+    
     // "target" sets the location of focus, where the object orbits around
-    this.target = new THREE.Vector3();
+ //   this.target = new THREE.Vector3();
+//    this.rotating=false;
     // How far you can dolly in and out ( PerspectiveCamera only )
     this.minDistance = 0;
     this.maxDistance = Infinity;
+    
     
     // How far you can zoom in and out ( OrthographicCamera only )
     this.minZoom = 0;
@@ -86,9 +91,6 @@ THREE.OrbitControls = function ( object, domElement ) {
     // Mouse buttons
     this.mouseButtons = { ORBIT: THREE.MOUSE.LEFT, ZOOM: THREE.MOUSE.MIDDLE, PAN: THREE.MOUSE.RIGHT };
     
-    // for reset
-    this.target0 = this.target.clone();
-    this.position0 = this.object.position.clone();
     this.zoom0 = this.object.zoom;
     
     //
@@ -143,8 +145,6 @@ THREE.OrbitControls = function ( object, domElement ) {
     
     this.reset = function () {
         
-        scope.target.copy( scope.target0 );
-        scope.object.position.copy( scope.position0 );
         scope.object.zoom = scope.zoom0;
         
         scope.object.updateProjectionMatrix();
@@ -169,10 +169,9 @@ THREE.OrbitControls = function ( object, domElement ) {
         return function update () {
 
 			//Deactivate device orientation controls while damping
-            scope.dampingEnded=Math.abs(sphericalDelta.theta)+Math.abs(sphericalDelta.phi)<0.002;
+            scope.dampingEnded=Math.abs(sphericalDelta.theta)+Math.abs(sphericalDelta.phi)<scope.minDelta;
             if(state == STATE.NONE && scope.dampingEnded)
                 return;
-            
             if(scope.switched){
 				rotation.setFromQuaternion( scope.object.quaternion, 'YXZ' );
 				spherical.phi = rotation.x;
@@ -203,9 +202,9 @@ THREE.OrbitControls = function ( object, domElement ) {
 
 			if ( !scope.dampingEnded ) {                
                 sphericalDelta.theta *= ( 1 - scope.dampingFactor );
-                sphericalDelta.phi *= ( 1 - scope.dampingFactor );                
+                sphericalDelta.phi *= ( 1 - scope.dampingFactor ); 
             } else
-                sphericalDelta.set( 0, 0, 0 );                
+                sphericalDelta.set( 0, 0, 0 );
             
             return false;            
         };
@@ -213,9 +212,9 @@ THREE.OrbitControls = function ( object, domElement ) {
     }();
     
     
-    this.lastOrientation=null;
+    this.lastOrientation=[0,0,0,0];
     
-    var tilt=function(){
+    this.tilt=function(){
         var currentOrientation = [];
 		var deg2rad = Math.PI/180;
         var deviceQuaternion=new THREE.Quaternion();
@@ -223,27 +222,20 @@ THREE.OrbitControls = function ( object, domElement ) {
         var diffQuaternion = new THREE.Quaternion();
         return function(){
             if(state==STATE.NONE && scope.dampingEnded){
-                
                 currentOrientation = [
                      event.alpha? event.alpha * deg2rad : 0,
                      event.beta? event.beta * deg2rad : 0,
 					 event.gamma? event.gamma * deg2rad : 0,
                      scope.screenOrientation?scope.screenOrientation * deg2rad : 0
                 ];
-                
                 if(scope.lastOrientation == null)//When switched from orbit
                     scope.lastOrientation = currentOrientation;
-                
                 setObjectQuaternion(deviceQuaternion, currentOrientation);
                 setObjectQuaternion(lastQuaternion, scope.lastOrientation);
-                
-                diffQuaternion = lastQuaternion.inverse().multiply(deviceQuaternion);
+                diffQuaternion = lastQuaternion.inverse().multiply(deviceQuaternion);//add differences of the current/last orientation
                 scope.object.quaternion.multiply(diffQuaternion);
-
 				scope.lastOrientation = currentOrientation;
-                
             };}}();
-    
     
     var onScreenOrientationChangeEvent = function() {
         scope.screenOrientation = window.orientation || 0;
@@ -272,7 +264,7 @@ THREE.OrbitControls = function ( object, domElement ) {
         
         //window.removeEventListener( 'keydown', onKeyDown, false );
         document.removeEventListener('mouseup',resetOrientation,false);
-        document.removeEventListener('touchend',resetOrientation,false);window.removeEventListener('orientationchange', onScreenOrientationChangeEvent, false);window.removeEventListener('deviceorientation', tilt, false);
+        document.removeEventListener('touchend',resetOrientation,false);window.removeEventListener('orientationchange', onScreenOrientationChangeEvent, false);window.removeEventListener('deviceorientation', this.tilt, false);
         
     };
     
@@ -408,10 +400,10 @@ THREE.OrbitControls = function ( object, domElement ) {
         var element = scope.domElement === document ? scope.domElement.body : scope.domElement;
         
         // rotating across whole screen goes 360 degrees around
-        rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientWidth * scope.rotateSpeed );
+        rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientWidth * (scope.rotateSpeed * scope.dampingFactor) );
         
         // rotating up and down along whole screen attempts to go 360, but limited to 180
-        rotateUp( Math.PI * rotateDelta.y / element.clientHeight * scope.rotateSpeed );
+        rotateUp( Math.PI * rotateDelta.y / element.clientHeight * (scope.rotateSpeed * scope.dampingFactor));
 //        console.log(rotateDelta.y, element.clientHeight);
         rotateStart.copy( rotateEnd );
         
@@ -518,10 +510,10 @@ THREE.OrbitControls = function ( object, domElement ) {
         var element = scope.domElement === document ? scope.domElement.body : scope.domElement;
         
         // rotating across whole screen goes 360 degrees around
-        rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientWidth * scope.rotateSpeed );
+        rotateLeft( 2 * Math.PI * rotateDelta.x / element.clientWidth * (scope.rotateSpeed * scope.dampingFactor));
         
         // rotating up and down along whole screen attempts to go 360, but limited to 180
-        rotateUp( Math.PI * rotateDelta.y / element.clientHeight * scope.rotateSpeed );
+        rotateUp( Math.PI * rotateDelta.y / element.clientHeight * (scope.rotateSpeed * scope.dampingFactor) );
         
         rotateStart.copy( rotateEnd );
         
@@ -817,18 +809,21 @@ THREE.OrbitControls = function ( object, domElement ) {
 //    window.addEventListener( 'keydown', onKeyDown, false );
     
     this.activateDeviceOrientation = function(activate){
+        
+        
+        
         if  ( window.DeviceOrientationEvent ) {
             if(activate){
                 resetOrientation();
-                window.removeEventListener('deviceorientation', tilt, false);
+                window.removeEventListener('deviceorientation', this.tilt, false);
+                window.addEventListener('deviceorientation', this.tilt, false);
                 document.removeEventListener('mouseup',resetOrientation,false);
                 document.removeEventListener('touchend',resetOrientation,false);
-                window.addEventListener('deviceorientation', tilt, false);
                 document.addEventListener('mouseup',resetOrientation,false);
                 document.addEventListener('touchend',resetOrientation,false);
 
             }else{
-                window.removeEventListener('deviceorientation', tilt, false);
+                window.removeEventListener('deviceorientation', this.tilt, false);
                 document.removeEventListener('mouseup',resetOrientation,false);
                 document.removeEventListener('touchend',resetOrientation,false);
             }
